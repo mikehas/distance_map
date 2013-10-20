@@ -232,9 +232,14 @@
               dataType: 'json',
               crossDomain: true,
               async: true,
-              data:{
+              // data:$.trim(JSON.stringify({ "from": "2049 Swazey St. San Luis Obispo, CA  93401",
+              //     "to": "336 W. 300 S. Salt Lake City, UT 84101" })),
+              // data:{
+              //               "from": "865 PARKWAY AVE, SALT LAKE CITY, UT, 84106",
+              //                 "to": "900 PARKWAY AVE, SALT LAKE CITY, UT, 84106" },
+               data:{
                   "from": addy1,
-                    "to": addy2,
+                    "to": addy2 },
               success: function ( data ) {
                  // alert(data["route"]["formattedTime"]);
                  $("#route").html(prettyPrint(data,{
