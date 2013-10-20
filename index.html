@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <script type="text/javascript" src="js/jquery-2.0.3.min.js"></script>
+    <script type="text/javascript" src="js/pp/prettyprint.js"></script>
+    <script type="text/javascript" src="js/DataTables/media/js/jquery.dataTables.js"></script>
+
+		<style type="text/css" title="currentStyle">
+			@import "js/DataTables/media/css/demo_page.css";
+			@import "js/DataTables/media/css/demo_table.css";
+		</style>
+    
+    <script type="text/javascript">
+    
+    
+    
+    function filebrowser(selector,varname){
+      // Content section used alot
+      var content = document.querySelector(selector);
+
+      if (!window.FileReader) {
+        content.innerHTML = "<p>This browser doesnt support the File API</p>";
+      } else {
+        // Page Layout
+        content.innerHTML =
+         '<input type="file" id="file" /></p>';
+         
+
+        // Input handler
+        document.querySelector(selector + ' ' + '#file').onchange = function() {
+          readFileAsText(this.files[0]);
+        };
+
+        // Drag and drop methods
+        content.ondragover = function(e) {
+          e.preventDefault();
+          return false;
+        };
+        content.ondrop = function(event) {
+          e.stopPropagation();
+          readFileAsText(event.dataTransfer.files[0]);
+          return false;
+        };
+
+        function readFileAsText(file) {
+          var reader = new FileReader();
+          reader.readAsText(file);
+          reader.onload = function(event) {
+            window.localStorage.setItem(varname, event.target.result);      
+          };
+          reader.onerror = function() {
+            $('#selector').val() = 'Unable to read ' + file.fileName;
+          };
+        }
+      }
+    }
+  
+    
+    function parseEmployees(){
+      var array = tsvToArray(localStorage["employees"]);
+      // $("#tablecontainer").html(prettyPrint(array));      
+      var table = arrayToTable(array);
+      $("#tablecontainer").append(table);
+      table.dataTable().attr("width","100%");
+    }
+    
+    function tsvToArray(tsvdata){
+      var lines = tsvdata.split('\n')
+      var output = [];
+      $.each(lines, function(key, line) {
+          var parts = line.split('\t');
+          cleaned = [];
+          $.each(parts, function(key, part){
+            cleaned.push(part);
+          });
+          output.push(cleaned);
+          // output += '<span>' + parts[0] + ' ' + parts[1] + '</span><span>' + parts[2] + '</span>\n';
+      });
+      // output is a 2d array with rows and columns
+      return output;
+    }
+    
+    function arrayToTable(array) {
+      var table = $('<table></table>');
+      thead = $('<thead></thead>');
+      tbody = $('<tbody></tbody>');
+      numcol = 0;
+      
+      $.each(array, function(key, line) {
+        if(key == 0){
+          parent = thead;
+        }else {
+          parent = tbody;
+        }
+        var row = $('<tr></tr>');
+        $.each(line, function(key, part) {
+          if (parent === thead) {
+            numcol += 1;
+          }
+          var td = $('<td></td>').text(part);
+          row.append(td);
+        });
+        if (row.children()){
+          while (row.children().length < numcol ) {
+            row.append($('<td></td>'));
+          }
+        }
+        
+        // fill in extra elements if needed.
+        parent.append(row);
+      });
+      
+      table.append(thead);
+      table.append(tbody);
+      
+      return table;
+
+    }
+    
+    function arrayToJson(array){
+      var json = {}
+      mapping = {}
+      $.each(array, function(rowkey, row){
+        // get headings
+        if (rowkey == 0){
+          $.each(row, function(colkey, header){
+            mapping[colkey] = header;
+          });
+        }else {
+          // set json
+          newrow = {};
+          $.each(row, function(colkey, col){
+              newrow[mapping[colkey]] = col;
+          });
+          json[rowkey] = newrow;
+        }
+      });
+      return json;
+    }
+    
+    function jsonToTable(json) {
+       var table = $('<table></table>');
+       var thead = $('<thead></thead>');
+       var tbody = $('<tbody></tbody>');
+       
+       var headers = [];
+       var i = 0;
+       var row = $('<tr></tr>');
+       
+       $.each(json["1"], function(key, part) {
+         // alert(key);
+         headers[i] = key 
+         var td = $('<td></td>').text(key);
+         row.append(td);
+         i += 1;
+       });
+       thead.append(row);
+
+       $.each(json, function(key, line) {
+         // alert("testing");
+         row = $('<tr></tr>');
+         i = 0;
+         $.each(line, function(key, item){
+           var td = $('<td></td>').text(line[headers[i]]);
+           row.append(td);
+           i+=1
+         });
+         tbody.append(row);
+       });
+
+       table.append(thead);
+       table.append(tbody);
+
+       return table;
+
+     }
+    
+    function clearStorage(id) {
+      localStorage.clear();
+    }
+    
+    function writeData(key,val){
+      window.localStorage.setItem(key, val); 
+    }
+    function readData(key){
+      return window.localStorage.getItem(key);
+    }
+    
+    function testGetRoute(){
+      $.ajax
+        ({
+            type: "POST",
+            url: 'http://www.mapquestapi.com/directions/v2/route?key=' + readData("mapkey"),
+            dataType: 'json',
+            crossDomain: true,
+            async: true,
+            // data:$.trim(JSON.stringify({ "from": "2049 Swazey St. San Luis Obispo, CA  93401",
+            //     "to": "336 W. 300 S. Salt Lake City, UT 84101" })),
+            // data:{
+            //               "from": "865 PARKWAY AVE, SALT LAKE CITY, UT, 84106",
+            //                 "to": "900 PARKWAY AVE, SALT LAKE CITY, UT, 84106" },
+             data:{
+                "from": "1 Grand Avenue, San Luis Obispo, CA  93401",
+                  "to": "1 N. 1 E. Salt Lake City, UT" },
+            success: function ( data ) {
+               // alert(data["route"]["formattedTime"]);
+               $("#route").html(prettyPrint(data,{
+                    // Config
+                    maxArray: 100, // Set max for array display (default: infinity)
+                    expanded: true, // Expanded view (boolean) (default: true),
+                    maxDepth: 10 // Max member depth (when displaying objects) (default: 3)
+                    })
+                );
+            },
+            error: function ( data ) {
+               $("#route").html(prettyPrint(data,{
+                    // Config
+                    maxArray: 100, // Set max for array display (default: infinity)
+                    expanded: true, // Expanded view (boolean) (default: true),
+                    maxDepth: 10 // Max member depth (when displaying objects) (default: 3)
+                    })
+                );
+            }
+        })
+      }
+      
+      function getRoute(addy1, addy2){
+        $.ajax
+          ({
+              type: "POST",
+              url: 'http://www.mapquestapi.com/directions/v2/route?key=' + readData("mapkey"),
+              dataType: 'json',
+              crossDomain: true,
+              async: true,
+              data:{
+                  "from": addy1,
+                    "to": addy2,
+              success: function ( data ) {
+                 // alert(data["route"]["formattedTime"]);
+                 $("#route").html(prettyPrint(data,{
+                      // Config
+                      maxArray: 100, // Set max for array display (default: infinity)
+                      expanded: true, // Expanded view (boolean) (default: true),
+                      maxDepth: 10 // Max member depth (when displaying objects) (default: 3)
+                      })
+                  );
+              },
+              error: function ( data ) {
+                 $("#route").html(prettyPrint(data,{
+                      // Config
+                      maxArray: 100, // Set max for array display (default: infinity)
+                      expanded: true, // Expanded view (boolean) (default: true),
+                      maxDepth: 10 // Max member depth (when displaying objects) (default: 3)
+                      })
+                  );
+              }
+          })
+        }
+    
+
+    function geoCode(address, func){
+      $.ajax
+        ({
+            type: "POST",
+            url: 'http://www.mapquestapi.com/geocoding/v1/address?key=' + readData("mapkey") + "&inFormat=json",
+            dataType: 'json',
+            async: true,
+            data: { 
+              "location": address
+              },
+            success: function ( data ){
+             func(data); 
+            }              
+        })
+    }
+    
+    $( document ).ajaxStop(function() {
+      $('#employertable').dataTable();
+      $('#employeetable').dataTable();
+      // drawTable("employers.json", "employer");
+      // alert("hello");
+      // drawTable("employees.json", "employee");
+      // alert("hello2");
+    });
+    
+    function getData(dataref, div){
+      
+    }
+    function drawTable(dataref, div){
+      // $("#json").html(prettyPrint(JSON.parse(readData(dataref))));
+            // 
+      $("#"+div+"content").html(jsonToTable(JSON.parse(readData(dataref))).attr("id",div+"table"));
+    }
+    // loc is the tsv file, locjson, is the json file to write to, and div is the final table dest div.
+    function appendGeoCodes(loc, locjson, div) {
+      $('#json').append(loc);
+      tsv = readData(loc);
+      array = tsvToArray(tsv);
+      json = arrayToJson(array);
+      // $('#json').append(prettyPrint(json));
+      $.each(json, function(index, item){
+        geoCode(item["Address"], function(data) {
+          // item["latLng"] = data["results"][0]["locations"][0]["latLng"];
+          item["lat"] = data["results"][0]["locations"][0]["latLng"]["lat"];
+          item["lng"] = data["results"][0]["locations"][0]["latLng"]["lng"];
+          writeData(locjson, JSON.stringify(json))
+          drawTable(locjson, div);
+        });
+      });
+      // writeData('employers.json',JSON.stringify(json));
+      // $('#json').append(prettyPrint(json));
+    }
+    
+    function createTable(title, parent_sel, json_data){
+      var table_obj = $(parent_sel);
+      $.each(json_data, function(index, item){
+           var table_row = $('<tr>', {id: item.id});
+           var table_cell = $('<td>', {html: item.data});
+           table_row.append(table_cell);
+           table_obj.append(table_row);
+      })
+    }
+  
+    
+  
+    $(document).ready(function() {
+        $('#example').dataTable();
+    } );
+    
+    
+    function appendGeoToTsv(tsv) {
+      var lines = tsv.split('\n')
+      var output = [];
+      $.each(lines, function(key, line) {
+          var parts = line.split('\t');
+          cleaned = [];
+          $.each(parts, function(key, part){
+            cleaned.push(part);
+          });
+          output.push(cleaned);
+          // output += '<span>' + parts[0] + ' ' + parts[1] + '</span><span>' + parts[2] + '</span>\n';
+      });
+      // output is a 2d array with rows and columns
+      return output;
+    }
+    
+
+    
+    
+    </script>
+    
+    <style type="text/css">
+    h2 {
+      margin-top:35px;
+    }
+    .dataTable {
+      width: 100%;
+    }
+    </style>
+  </head>
+  <body>
+    
+    <h2>Mapquest App Key</h2>
+    <div id="mapquest">
+      <input id='mapkey' type="text"></input>
+    </div>
+    <script type="text/javascript">
+      if(!$("#mapkey").val()){
+        $("#mapkey").val(readData("mapkey"));
+      }
+      $('#mapkey').on('change', function () {
+        writeData( "mapkey", $('#mapkey').val() );
+      });
+    </script>
+    
+    <h2>Employers</h2>
+    <div id="employers">
+    </div>
+    <div id="employercontent">
+    </div>
+    <script type="text/javascript">
+      filebrowser("#employers", "employers");
+      table = arrayToTable(tsvToArray(readData("employers"))).attr("id","employertable");
+      $('#employercontent').html(table);
+      $('#employertable').dataTable();
+    </script>
+    
+    <h2>Employees</h2>
+    <div id="employees"></div>
+    <div id="employeecontent"></div>
+    <script type="text/javascript">
+      filebrowser("#employees", "employees");
+      table = arrayToTable(tsvToArray(readData("employees"))).attr("id","employeetable");
+      $('#employeecontent').html(table);
+      $('#employeetable').dataTable();
+    </script>
+    
+    <h2>Route Testing</h2>
+    <div id="route"></div>
+  
+
+    </div>
+    
+    <input type="button" onclick="testGetRoute();" value="Test Get Route"></input>
+    <!--<input type="button" onclick="geoCode();" value="Test GeoCode"></input>-->
+    
+    <input type="button" onclick="appendGeoCodes('employers','employers.json','employer')" value="Geocode Employers"/>
+    <input type="button" onclick="appendGeoCodes('employees','employees.json','employee')" value="Geocode Employees"/>
+
+
+    <div id="tablecontainer">
+    
+      
+    </div>
+    <div id="storageviewer">
+      <h2>Local Storage</h2>
+      <input type="button" onclick="clearStorage()" value="Clear Data Saved in Browser"/>  
+      <br />
+      <br />
+    </div>
+     <script type="text/javascript">
+      $.each(localStorage, function(i, val){
+          $('#storageviewer').append("<strong>"+i+"</strong>" + ": ");
+          $('#storageviewer').append(val);
+          $('#storageviewer').append("<br/>");
+      });
+      </script>
+     
+     <h2> Json Data </h2> 
+    <div id="json"></div>
+  </body>
+  
+  
+</html>
+
