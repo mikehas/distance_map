@@ -9,11 +9,19 @@
 			@import "js/DataTables/media/css/demo_page.css";
 			@import "js/DataTables/media/css/demo_table.css";
 		</style>
+		
+	  <style type="text/css">
+      h2 {
+        margin-top:35px;
+      }
+      .dataTable {
+        width: 100%;
+      }
+    </style>
     
     <script type="text/javascript">
     
-    
-    
+
     function filebrowser(selector,varname){
       // Content section used alot
       var content = document.querySelector(selector);
@@ -56,13 +64,13 @@
     }
   
     
-    function parseEmployees(){
-      var array = tsvToArray(localStorage["employees"]);
-      // $("#tablecontainer").html(prettyPrint(array));      
-      var table = arrayToTable(array);
-      $("#tablecontainer").append(table);
-      table.dataTable().attr("width","100%");
-    }
+    // function parseEmployees(){
+    //   var array = tsvToArray(localStorage["employees"]);
+    //   // $("#tablecontainer").html(prettyPrint(array));      
+    //   var table = arrayToTable(array);
+    //   $("#tablecontainer").append(table);
+    //   table.dataTable().attr("width","100%");
+    // }
     
     function tsvToArray(tsvdata){
       var lines = tsvdata.split('\n')
@@ -200,8 +208,8 @@
             //               "from": "865 PARKWAY AVE, SALT LAKE CITY, UT, 84106",
             //                 "to": "900 PARKWAY AVE, SALT LAKE CITY, UT, 84106" },
              data:{
-                "from": "1 Grand Avenue, San Luis Obispo, CA  93401",
-                  "to": "1 N. 1 E. Salt Lake City, UT" },
+                "from": "1 Grand Avenue, San Luis Obispo, CA  93407",
+                  "to": "2049 Swazey St Apt 1, San Luis Obispo, CA 93401" },
             success: function ( data ) {
                // alert(data["route"]["formattedTime"]);
                $("#route").html(prettyPrint(data,{
@@ -224,45 +232,106 @@
         })
       }
       
-      function getRoute(addy1, addy2){
-        $.ajax
-          ({
-              type: "POST",
-              url: 'http://www.mapquestapi.com/directions/v2/route?key=' + readData("mapkey"),
-              dataType: 'json',
-              crossDomain: true,
-              async: true,
-              // data:$.trim(JSON.stringify({ "from": "2049 Swazey St. San Luis Obispo, CA  93401",
-              //     "to": "336 W. 300 S. Salt Lake City, UT 84101" })),
-              // data:{
-              //               "from": "865 PARKWAY AVE, SALT LAKE CITY, UT, 84106",
-              //                 "to": "900 PARKWAY AVE, SALT LAKE CITY, UT, 84106" },
-               data:{
-                  "from": addy1,
-                    "to": addy2 },
-              success: function ( data ) {
-                 // alert(data["route"]["formattedTime"]);
-                 $("#route").html(prettyPrint(data,{
-                      // Config
-                      maxArray: 100, // Set max for array display (default: infinity)
-                      expanded: true, // Expanded view (boolean) (default: true),
-                      maxDepth: 10 // Max member depth (when displaying objects) (default: 3)
-                      })
-                  );
-              },
-              error: function ( data ) {
-                 $("#route").html(prettyPrint(data,{
-                      // Config
-                      maxArray: 100, // Set max for array display (default: infinity)
-                      expanded: true, // Expanded view (boolean) (default: true),
-                      maxDepth: 10 // Max member depth (when displaying objects) (default: 3)
-                      })
-                  );
-              }
-          })
-        }
+    //div = routes
+    function createRoutes(loc_employers, loc_employees, div) {
+      var employers = JSON.parse(readData(loc_employers));
+      var employees = JSON.parse(readData(loc_employees));
+      var routes = {};
+      
+      var i = 0;
+      $.each(employers, function( j, employer) {
+        $.each(employees, function( k, employee) {
+          
+           routes[i] = {};
+           routes[i]["employer"] = employer["Name"];
+           routes[i]["employee"] = employee["Name"];
+           
+           // function to handle ajax return and write to json
+           callback = createFunc(i,routes)
+           getRoute(employer["Address"],employee["Address"], callback);
+           
+           i += 1;
+         });
+      });
+    }
+    // no block scope, only function scope, therefore we must return a new function to "lock" i 
+    // with the value that it had before the ajax call.
+    function createFunc(i, routes) {
+        return function(data) { 
+           row = routes[i];
+           row["time_sec"] = data["route"]["time"];
+           row["time_pretty"] = data["route"]["formattedTime"];
+           row["distance_mi"] = data["route"]["distance"];
+           row["fuel"] = data["route"]["fuelUsed"];
+           writeData("routes.json", JSON.stringify(routes));
+           drawTable("routes.json", "route");
+           // $('#json').append(prettyPrint(routes)); 
+         };
+    }
     
 
+    function getRoute(addy1, addy2, func){
+      $.ajax
+        ({
+            type: "POST",
+            url: 'http://www.mapquestapi.com/directions/v2/route?key=' + readData("mapkey"),
+            dataType: 'json',
+            crossDomain: true,
+            async: true,
+            // data:$.trim(JSON.stringify({ "from": "2049 Swazey St. San Luis Obispo, CA  93401",
+            //     "to": "336 W. 300 S. Salt Lake City, UT 84101" })),
+            // data:{
+            //               "from": "865 PARKWAY AVE, SALT LAKE CITY, UT, 84106",
+            //                 "to": "900 PARKWAY AVE, SALT LAKE CITY, UT, 84106" },
+             data:{
+                "from": addy1,
+                  "to": addy2 },
+            success: function ( data ) {
+              func(data);
+               // alert(data["route"]["formattedTime"]);
+               // $("#route").html(prettyPrint(data,{
+               //      // Config
+               //      maxArray: 100, // Set max for array display (default: infinity)
+               //      expanded: true, // Expanded view (boolean) (default: true),
+               //      maxDepth: 10 // Max member depth (when displaying objects) (default: 3)
+               //      })
+               //  );
+            },
+            error: function ( data ) {
+               $("#routes").html(prettyPrint(data,{
+                    // Config
+                    maxArray: 100, // Set max for array display (default: infinity)
+                    expanded: true, // Expanded view (boolean) (default: true),
+                    maxDepth: 10 // Max member depth (when displaying objects) (default: 3)
+                    })
+                );
+            }
+        })
+      }
+
+    // loc is the tsv file, locjson, is the json file to write to, and div is the final table dest div.
+    // loc= locjson= div=
+    // employers','employers.json','employer
+    function appendGeoCodes(loc, locjson, div) {
+      $('#json').append(loc);
+      tsv = readData(loc);
+      array = tsvToArray(tsv);
+      json = arrayToJson(array);
+      // $('#json').append(prettyPrint(json));
+      $.each(json, function(index, item){
+        geoCode(item["Address"], function(data) {
+          // item["latLng"] = data["results"][0]["locations"][0]["latLng"];
+          item["lat"] = data["results"][0]["locations"][0]["latLng"]["lat"];
+          item["lng"] = data["results"][0]["locations"][0]["latLng"]["lng"];
+          // alert(JSON.stringify(json));
+
+          writeData(locjson, JSON.stringify(json))
+          drawTable(locjson, div);
+        });
+      });
+      // writeData('employers.json',JSON.stringify(json));
+      // $('#json').append(prettyPrint(json));
+    }
     function geoCode(address, func){
       $.ajax
         ({
@@ -279,42 +348,7 @@
         })
     }
     
-    $( document ).ajaxStop(function() {
-      $('#employertable').dataTable();
-      $('#employeetable').dataTable();
-      // drawTable("employers.json", "employer");
-      // alert("hello");
-      // drawTable("employees.json", "employee");
-      // alert("hello2");
-    });
     
-    function getData(dataref, div){
-      
-    }
-    function drawTable(dataref, div){
-      // $("#json").html(prettyPrint(JSON.parse(readData(dataref))));
-            // 
-      $("#"+div+"content").html(jsonToTable(JSON.parse(readData(dataref))).attr("id",div+"table"));
-    }
-    // loc is the tsv file, locjson, is the json file to write to, and div is the final table dest div.
-    function appendGeoCodes(loc, locjson, div) {
-      $('#json').append(loc);
-      tsv = readData(loc);
-      array = tsvToArray(tsv);
-      json = arrayToJson(array);
-      // $('#json').append(prettyPrint(json));
-      $.each(json, function(index, item){
-        geoCode(item["Address"], function(data) {
-          // item["latLng"] = data["results"][0]["locations"][0]["latLng"];
-          item["lat"] = data["results"][0]["locations"][0]["latLng"]["lat"];
-          item["lng"] = data["results"][0]["locations"][0]["latLng"]["lng"];
-          writeData(locjson, JSON.stringify(json))
-          drawTable(locjson, div);
-        });
-      });
-      // writeData('employers.json',JSON.stringify(json));
-      // $('#json').append(prettyPrint(json));
-    }
     
     function createTable(title, parent_sel, json_data){
       var table_obj = $(parent_sel);
@@ -325,7 +359,26 @@
            table_obj.append(table_row);
       })
     }
-  
+    
+    
+    function drawTable(dataref, div){
+      // $("#json").html(prettyPrint(JSON.parse(readData(dataref))));
+            // 
+      $("#"+div+"content").html(jsonToTable(JSON.parse(readData(dataref))).attr("id",div+"table"));
+    }
+    
+    $( document ).ajaxStop(function() {
+      $('#employertable').dataTable();
+      $('#employeetable').dataTable();
+      $('#routetable').dataTable();
+      // drawTable("employers.json", "employer");
+      // alert("hello");
+      // drawTable("employees.json", "employee");
+      // alert("hello2");
+    });
+    
+
+
     
   
     $(document).ready(function() {
@@ -333,35 +386,11 @@
     } );
     
     
-    function appendGeoToTsv(tsv) {
-      var lines = tsv.split('\n')
-      var output = [];
-      $.each(lines, function(key, line) {
-          var parts = line.split('\t');
-          cleaned = [];
-          $.each(parts, function(key, part){
-            cleaned.push(part);
-          });
-          output.push(cleaned);
-          // output += '<span>' + parts[0] + ' ' + parts[1] + '</span><span>' + parts[2] + '</span>\n';
-      });
-      // output is a 2d array with rows and columns
-      return output;
-    }
     
 
     
     
     </script>
-    
-    <style type="text/css">
-    h2 {
-      margin-top:35px;
-    }
-    .dataTable {
-      width: 100%;
-    }
-    </style>
   </head>
   <body>
     
@@ -373,7 +402,7 @@
       if(!$("#mapkey").val()){
         $("#mapkey").val(readData("mapkey"));
       }
-      $('#mapkey').on('change', function () {
+      $('#mapkey').on('keyup', function () {
         writeData( "mapkey", $('#mapkey').val() );
       });
     </script>
@@ -388,6 +417,7 @@
       table = arrayToTable(tsvToArray(readData("employers"))).attr("id","employertable");
       $('#employercontent').html(table);
       $('#employertable').dataTable();
+      writeData("employers.json", JSON.stringify(arrayToJson(tsvToArray(readData("employers")))))
     </script>
     
     <h2>Employees</h2>
@@ -398,20 +428,22 @@
       table = arrayToTable(tsvToArray(readData("employees"))).attr("id","employeetable");
       $('#employeecontent').html(table);
       $('#employeetable').dataTable();
+      writeData("employees.json", JSON.stringify(arrayToJson(tsvToArray(readData("employees")))))
     </script>
     
-    <h2>Route Testing</h2>
-    <div id="route"></div>
-  
-
+    <h2>Routes</h2>
+    <div id="routes"></div>
+    <div id="routecontent"></div>
     </div>
     
+    <h2>Controls</h2>
     <input type="button" onclick="testGetRoute();" value="Test Get Route"></input>
     <!--<input type="button" onclick="geoCode();" value="Test GeoCode"></input>-->
     
     <input type="button" onclick="appendGeoCodes('employers','employers.json','employer')" value="Geocode Employers"/>
     <input type="button" onclick="appendGeoCodes('employees','employees.json','employee')" value="Geocode Employees"/>
 
+    <input type="button" onclick="createRoutes('employers.json', 'employees.json', 'routes')" value="Create Routes"/>
 
     <div id="tablecontainer">
     
