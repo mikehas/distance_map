@@ -18,7 +18,9 @@
         width: 100%;
       }
       .map {
-        width: 100%;
+        width: 98%;
+        // width: 95%;
+        // margin: 25px auto;
         height: 500px;
       }
       #mapkey {
@@ -31,8 +33,11 @@
     // Load MapQuest mapping API for js maps.
     // http://developer.mapquest.com/web/documentation/sdk/javascript/v7.0/basic-map
     $.ready( new function(){
+      loadMapQuest();
+    });
+    function loadMapQuest(){
       mapkey = readData("mapkey");
-      if( mapkey == null ){
+      if( mapkey == null){
         alert("Please enter your mapquest App Key below and refresh this page")
       }else{
         $.getScript("http://www.mapquestapi.com/sdk/js/v7.0.s/mqa.toolkit.js?key="+mapkey, function(){
@@ -40,7 +45,7 @@
         });
       }
       $.getScript()
-    });
+    }
     
     $.ready( new function() {
       
@@ -58,6 +63,7 @@
       .attr("id", "map1")
       .attr("class", "map")
       basicMap(map1);
+      addEmployers(map1);
     }
     
     function basicMap(div){
@@ -74,7 +80,91 @@
        /*Construct an instance of MQA.TileMap with the options object*/
        window.map = new MQA.TileMap(options);
        
+       MQA.withModule('largezoom','traffictoggle','viewoptions','geolocationcontrol','insetmapcontrol','mousewheel', function() {
+
+          map.addControl(
+            new MQA.LargeZoom(),
+            new MQA.MapCornerPlacement(MQA.MapCorner.TOP_LEFT, new MQA.Size(5,5))
+          );
+
+          map.addControl(new MQA.TrafficToggle());
+
+          map.addControl(new MQA.ViewOptions());
+
+          map.addControl(
+            new MQA.GeolocationControl(),
+            new MQA.MapCornerPlacement(MQA.MapCorner.TOP_RIGHT, new MQA.Size(10,50))
+          );
+
+          /*Inset Map Control options*/
+          var options={
+            size:{width:150, height:125},
+            zoom:3,
+            mapType:'map',
+            minimized:true
+          };
+
+          map.addControl(
+            new MQA.InsetMapControl(options),
+            new MQA.MapCornerPlacement(MQA.MapCorner.BOTTOM_RIGHT)
+          );
+
+          map.enableMouseWheelZoom();
+        });
+    }
+    
+    function addEmployers(map){
+      // map = map[0]
+      /*Create a new POI collection.*/
+      var employerpois=new MQA.ShapeCollection();
+      var employeepois=new MQA.ShapeCollection();
+
+      /*Set a custom name for the collections. This name can be used to retrieve the collection from
+      the map using the MQA.TileMap.getShapeCollection(name) function or to remove the
+      collection from the map using the MQA.TileMap.removeShapeCollection(name) function.*/
+      employerpois.collectionName='employers';
+      employeepois.collectionName='employees';
+
+      // pois.minZoomLevel=7;
+
+      /*Build the POIs and add them to the POI collection.*/
+      
+      addToPois("employers.json", employerpois, "red");
+      addToPois("employees.json", employeepois, "yellow");
        
+       // var shapes=new MQA.ShapeCollection();
+       //    shapes.collectionName='custom_shapes';
+                 
+       
+       window.map.addShapeCollection(employeepois);
+       window.map.addShapeCollection(employerpois);
+       
+       
+       /*Automatically zoom and center the map using bestFit.*/
+       window.map.bestFit();
+    }
+    
+    function refreshMap(){
+      window.map.bestFit();
+    }
+    
+    function addToPois(localjson, pois, icon){
+      list = JSON.parse(readData(localjson));
+      $.each(list,  function(key, val){
+        poi = new MQA.Poi( {
+          "lat": val["lat"],
+          "lng": val["lng"]
+        });
+        if (icon == "blue"){
+          poi.setIcon(new MQA.Icon("img/bluecircle.png",16,16));
+        }else if (icon == "yellow"){
+          poi.setIcon(new MQA.Icon("img/yellowcircle.png",16,16));
+        }else if (icon == "red"){
+            poi.setIcon(new MQA.Icon("img/redcircle.png",16,16));
+          }
+        pois.add(poi);
+      });
+      return pois
     }
     
     
@@ -111,7 +201,10 @@
           var reader = new FileReader();
           reader.readAsText(file);
           reader.onload = function(event) {
-            window.localStorage.setItem(varname, event.target.result);      
+            window.localStorage.setItem(varname, event.target.result);
+            writeData(varname+".json", JSON.stringify(arrayToJson(tsvToArray(readData(varname)))))
+            refreshAll();
+                      
           };
           reader.onerror = function() {
             $('#selector').val() = 'Unable to read ' + file.fileName;
@@ -136,6 +229,7 @@
           var parts = line.split('\t');
           cleaned = [];
           $.each(parts, function(key, part){
+            part = $.trim(part);
             cleaned.push(part);
           });
           output.push(cleaned);
@@ -290,6 +384,7 @@
       }
       
     //div = routes
+    // loc_emplyers = employers.json
     function createRoutes(loc_employers, loc_employees, div) {
       var employers = JSON.parse(readData(loc_employers));
       var employees = JSON.parse(readData(loc_employees));
@@ -371,9 +466,10 @@
     // employers','employers.json','employer
     function appendGeoCodes(loc, locjson, div) {
       $('#json').append(loc);
-      tsv = readData(loc);
-      array = tsvToArray(tsv);
-      json = arrayToJson(array);
+      // tsv = readData(loc);
+      // array = tsvToArray(tsv);
+      // json = arrayToJson(array);
+      json = JSON.parse(readData(locjson));
       // $('#json').append(prettyPrint(json));
       $.each(json, function(index, item){
         geoCode(item["Address"], function(data) {
@@ -417,7 +513,7 @@
       })
     }
     
-    
+    // example data.json, div to insert it in
     function drawTable(dataref, div){
       // $("#json").html(prettyPrint(JSON.parse(readData(dataref))));
             // 
@@ -425,16 +521,15 @@
     }
     
     $( document ).ajaxStop(function() {
-      
-
+      refreshAll();
+    });
+    
+    function refreshAll(){
       $('#employertable').dataTable();
       $('#employeetable').dataTable();
       $('#routetable').dataTable();
-      // drawTable("employers.json", "employer");
-      // alert("hello");
-      // drawTable("employees.json", "employee");
-      // alert("hello2");
-    });
+      refreshMap(); 
+    }
     
 
 
@@ -444,7 +539,10 @@
         $('#example').dataTable();
     } );
     
-    
+    function insertKey(){
+      loadMapQuest();
+      refreshAll();
+    }
     
 
     
@@ -459,6 +557,7 @@
     </div>
     <div id="mapcontainer">
     </div>
+        <input type="button" onclick="refreshMap()" value="Refresh Map"/>
     <script type="text/javascript">
       if(!$("#mapkey").val()){
         $("#mapkey").val(readData("mapkey"));
@@ -466,6 +565,7 @@
       $('#mapkey').on('keyup', function () {
         writeData( "mapkey", $('#mapkey').val() );
       });
+     
     </script>
     
     <h2>Employers</h2>
@@ -475,10 +575,10 @@
     </div>
     <script type="text/javascript">
       filebrowser("#employers", "employers");
-      table = arrayToTable(tsvToArray(readData("employers"))).attr("id","employertable");
-      $('#employercontent').html(table);
+      
+      drawTable("employers.json", "employer");
       $('#employertable').dataTable();
-      writeData("employers.json", JSON.stringify(arrayToJson(tsvToArray(readData("employers")))))
+
     </script>
     
     <h2>Employees</h2>
@@ -486,25 +586,33 @@
     <div id="employeecontent"></div>
     <script type="text/javascript">
       filebrowser("#employees", "employees");
-      table = arrayToTable(tsvToArray(readData("employees"))).attr("id","employeetable");
-      $('#employeecontent').html(table);
+      
+      drawTable("employees.json", "employee");
       $('#employeetable').dataTable();
-      writeData("employees.json", JSON.stringify(arrayToJson(tsvToArray(readData("employees")))))
+      
     </script>
     
     <h2>Routes</h2>
     <div id="routes"></div>
     <div id="routecontent"></div>
+    
+    <script type="text/javascript">      
+      drawTable("routes.json", "route");
+      $('#routetable').dataTable();
+      
+    </script>
+    
     </div>
     
     <h2>Controls</h2>
-    <input type="button" onclick="testGetRoute();" value="Test Get Route"></input>
+    <!--<input type="button" onclick="testGetRoute();" value="Test Get Route"></input>-->
     <!--<input type="button" onclick="geoCode();" value="Test GeoCode"></input>-->
     
     <input type="button" onclick="appendGeoCodes('employers','employers.json','employer')" value="Geocode Employers"/>
     <input type="button" onclick="appendGeoCodes('employees','employees.json','employee')" value="Geocode Employees"/>
 
     <input type="button" onclick="createRoutes('employers.json', 'employees.json', 'routes')" value="Create Routes"/>
+
 
     <div id="tablecontainer">
     
@@ -526,6 +634,7 @@
      
      <h2> Json Data </h2> 
     <div id="json"></div>
+    <div id="debug"></div>
   </body>
   
   
