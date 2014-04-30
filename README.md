@@ -2,7 +2,7 @@ distance_map
 ============
 
 This one-page web application takes in a list of employees and a list of employers and
-calculates commute time between potential employers. 
+calculates commute time to potential employers. 
 
 It is designed to be run from your local computer, requires a mapquest
 developer key, and properly formatted formatted files which can be uploaded
