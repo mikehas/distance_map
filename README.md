@@ -13,4 +13,4 @@ To reduce requests, it also takes advantage of browser side data storage when po
 
 Detailed information for each commute is also displayed in a sortable table.
 
-The table includes, commute time, commute distance, travel time, and fuel use for each scenario.
+The table includes, commute time, commute distance and estimated fuel use for each scenario.
