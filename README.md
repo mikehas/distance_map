@@ -8,6 +8,8 @@ It is designed to be run from your local computer, requires a mapquest
 developer key, and properly formatted formatted files which can be uploaded
 using the ajax interface.
 
-A map is created with everyone pinned onto an interactive map. Commute time is 
-calculated using average estimated traffic. Detailed information for each 
-permutation is also displayed in a sortable table.
+It will geo-code all you addresses, then create an interactive map with everyone displayed. 
+
+Detailed information for each commute is also displayed in a sortable table.
+
+The table includes, commute time, commute distance, travel time, and fuel use.
